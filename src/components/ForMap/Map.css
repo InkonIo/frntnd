@@ -1,0 +1,59 @@
+/* components/ForMap/Map.css */
+
+/* Основные стили для контейнера карты Leaflet */
+.leaflet-container {
+  border-radius: 8px; /* Скругленные углы для карты */
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); /* Красивая тень для выделения карты */
+  overflow: hidden; /* Обрезает содержимое, чтобы скругленные углы работали */
+  background-color: #e0e0e0; /* Фоновый цвет для карты, если тайлы не загрузились */
+  width: 100%; /* Карта занимает всю доступную ширину */
+  height: 100%; /* Карта занимает всю доступную высоту */
+}
+
+/* Стили для кнопок контроля Leaflet-Draw (можно настроить по желанию) */
+.leaflet-draw-toolbar a {
+  border-radius: 4px !important; /* Скругленные углы для кнопочек инструментов */
+}
+
+.leaflet-draw-toolbar a.leaflet-draw-edit-enabled,
+.leaflet-draw-toolbar a.leaflet-draw-create-enabled {
+  background-color: #007bff; /* Цвет фона для активных кнопочек */
+  color: white; /* Цвет текста для активных кнопочек */
+}
+
+/* Стили для информационного блока при рисовании (если он рендерится как часть MapComponent, но позиционируется fixed, эти правила не используются) */
+.drawing-info-box {
+  position: absolute;
+  bottom: 15px;
+  left: 15px;
+  background-color: rgba(0,0,0,0.85);
+  color: white;
+  padding: 15px;
+  border-radius: 8px;
+  font-size: 14px;
+  z-index: 1000;
+  max-width: 320px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+}
+
+.drawing-info-box h2 {
+  font-weight: bold;
+  margin-bottom: 8px;
+  color: #4CAF50; /* Зеленый цвет для заголовка */
+}
+
+.drawing-info-box div {
+  line-height: 1.4;
+}
+
+/* Loader Spin Animation (для MapComponent) */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.loader-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Все остальные специфические стили для позиционирования контролов Leaflet удалены. */

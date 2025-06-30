@@ -1,0 +1,400 @@
+/* components/ForMap/MapSidebar.css */
+
+/* Keyframes for smooth animations (adjusted for left slide) */
+@keyframes slideInLeft {
+  from {
+    transform: translateX(calc(-100% + var(--collapsed-width)));
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideOutLeft {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(-100% + var(--collapsed-width)));
+  }
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fadeInScale {
+  animation: fadeInScale 0.2s ease-out forwards;
+}
+
+/* Variables for sidebar width management */
+:root {
+  --collapsed-width: 60px; /* Width when collapsed, for icon-only mode */
+  --expanded-width: 280px; /* Width when expanded */
+  --sidebar-transition-duration: 0.3s;
+}
+
+/* Main sidebar container */
+.sidebar-container {
+  position: absolute; /* Allows it to slide over content */
+  top: 0;
+  left: 0; /* Changed from right: 0 to left: 0 */
+  height: 100vh;
+  width: var(--collapsed-width); /* Start collapsed */
+  overflow: hidden; /* Hide overflow content from scrolling, use internal scroll for collapsible-content */
+  padding: 0.5rem; /* Reduced padding for collapsed state */
+  background: linear-gradient(180deg, #1e293b, #0f172a); /* Dark blue-gray gradient */
+  border-right: 1px solid #334155; /* Subtle right border */
+  border-left: none; /* No left border */
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.4); /* Stronger shadow for depth */
+  z-index: 1000; /* Ensure it's above the map */
+  transition: width var(--sidebar-transition-duration) ease-in-out, padding var(--sidebar-transition-duration) ease-in-out; /* Animate width and padding */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center; /* Center icons horizontally when collapsed */
+}
+
+/* Expanded state for the sidebar (on hover) */
+.sidebar-container.expanded,
+.sidebar-container:hover { /* Sidebar expands on hover */
+  width: 300px;
+  padding: 1rem; /* Full padding when expanded */
+  align-items: flex-start; /* Align items to start when expanded */
+}
+
+/* Burger Menu Button - Positioned at the top-left of the sidebar container */
+.burger-menu-wrapper {
+  position: absolute;
+  top: 1rem; /* Отступ сверху */
+  left: 0.5rem; /* Отступ слева в свернутом состоянии */
+  z-index: 1050; /* Над всем остальным */
+  transition: left var(--sidebar-transition-duration) ease-in-out, transform var(--sidebar-transition-duration) ease-in-out;
+}
+
+.sidebar-container.expanded .burger-menu-wrapper,
+.sidebar-container:hover .burger-menu-wrapper {
+  left: 1rem; /* Отступ слева в развернутом состоянии */
+  transform: translateX(0);
+}
+
+/* Dropdown menu positioning relative to the burger button */
+.map-sidebar-dropdown-menu {
+  background-color: #1f2a3a; /* Darker background for dropdown */
+  border: 1px solid #334155;
+  border-radius: 0.75rem;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5); /* More prominent shadow */
+  /* adjusted position */
+  left: calc(100% + 0.5rem); /* Появляется справа от кнопки */
+  top: 0; /* Выравнивание по верху кнопки */
+  min-width: 150px; /* Минимальная ширина, чтобы текст не обрезался */
+}
+
+.map-sidebar-dropdown-menu a,
+.map-sidebar-dropdown-menu button {
+  color: #e2e8f0; /* Light text for menu items */
+  padding: 0.5rem 1rem;
+  text-align: left;
+  justify-content: flex-start;
+}
+
+.map-sidebar-dropdown-menu a:hover,
+.map-sidebar-dropdown-menu button:hover {
+  background-color: rgba(255, 255, 255, 0.1); /* Subtle light hover */
+  color: #fff;
+}
+.map-sidebar-dropdown-menu .map-logout {
+  background-color: #ef4444; /* red-500 */
+  color: white;
+  border: none; /* No border for consistent look */
+}
+
+.map-sidebar-dropdown-menu .map-logout:hover {
+  background-color: #dc2626; /* red-600 */
+}
+
+
+/* Wrapper for main action buttons (always visible as icons) */
+.main-action-buttons-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* Center icons when collapsed */
+  width: 100%; /* Take full width of sidebar container */
+  padding-top: 4rem; /* Space below the burger button */
+  gap: 0.75rem; /* Space between buttons */
+}
+
+.sidebar-container.expanded .main-action-buttons-wrapper,
+.sidebar-container:hover .main-action-buttons-wrapper { /* Apply when expanded or on hover */
+  align-items: flex-start; /* Align to start when expanded */
+  padding-top: 1rem; /* Less padding needed when expanded and other content visible */
+  margin-top: 2rem; /* Add some margin after title if needed */
+}
+
+/* Styles for always-visible icon buttons */
+.sidebar-icon-button {
+  width: calc(var(--collapsed-width) - 1rem); /* Fit within collapsed sidebar, accounting for padding */
+  padding: 0.65rem 0.5rem; /* Smaller padding for narrow mode */
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease-in-out, width var(--sidebar-transition-duration) ease-in-out, padding var(--sidebar-transition-duration) ease-in-out;
+  display: flex;
+  align-items: center;
+  justify-content: center; /* Center icon when collapsed */
+  gap: 0.5rem;
+  flex-shrink: 0; /* Prevent shrinking in flex container */
+}
+
+/* When sidebar is expanded, these buttons align left with text */
+.sidebar-container.expanded .sidebar-icon-button,
+.sidebar-container:hover .sidebar-icon-button { /* Apply when expanded or on hover */
+  justify-content: flex-start; /* Align to start when expanded */
+  width: 100%; /* Take full width */
+  padding: 0.65rem 1rem; /* Adjust padding for text */
+}
+
+/* Hide text span in icon-buttons when collapsed */
+.sidebar-icon-button .button-text { /* Specific class for text span */
+  display: none; /* Hide text by default */
+  opacity: 0;
+  transition: opacity var(--sidebar-transition-duration) ease-in-out;
+  white-space: nowrap; /* Prevent text wrapping */
+}
+
+/* Show text when sidebar is expanded */
+.sidebar-container.expanded .sidebar-icon-button .button-text,
+.sidebar-container:hover .sidebar-icon-button .button-text { /* Apply when expanded or on hover */
+  display: inline; /* Show text when expanded */
+  opacity: 1;
+}
+
+/* Main collapsible content container (appears only when expanded) */
+.collapsible-content {
+  opacity: 0;
+  max-height: 0;
+  pointer-events: none; /* Disable interaction */
+  overflow: hidden; /* Hide content */
+  margin: 0;
+  padding: 0;
+  flex-grow: 1; /* Allow content to grow */
+  width: 100%; /* Ensure it takes full width when expanded */
+  transition: opacity var(--sidebar-transition-duration) ease-in-out, max-height var(--sidebar-transition-duration) ease-in-out, margin var(--sidebar-transition-duration) ease-in-out, padding var(--sidebar-transition-duration) ease-in-out;
+}
+
+.sidebar-container.expanded .collapsible-content,
+.sidebar-container:hover .collapsible-content { /* Apply when expanded or on hover */
+  opacity: 1;
+  max-height: 1000px; /* Sufficiently large to show all content */
+  pointer-events: auto;
+  margin-top: 1rem; /* Add margin after the main action buttons */
+  padding-top: 1rem;
+  overflow-y: auto; /* Enable scrollbar for content if needed */
+}
+
+/* Adjust padding for main title (now smaller text) */
+.sidebar-container .main-title {
+  font-size: 30px; /* text-xl, smaller than 2xl */
+  padding: 0;
+  margin-bottom: 0;
+  height: auto; /* Allow height to adjust */
+  opacity: 1; /* Always visible for burger, but will be inside collapsible-content */
+  visibility: visible;
+  transition: all var(--sidebar-transition-duration) ease-in-out;
+  /* Adjust for collapsed state if needed, but it's inside collapsible-content now */
+}
+
+/* These sections are inside .collapsible-content, so their visibility is handled by it */
+.section-block {
+  background: linear-gradient(145deg, #2f3e52, #1f2a3a);
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.section-block h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #a7c0d8;
+  margin-bottom: 1rem;
+}
+
+/* Generic button styles (for buttons inside .collapsible-content) */
+.sidebar-button {
+  padding: 0.65rem 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease-in-out;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.sidebar-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.sidebar-button:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.sidebar-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Specific styles for transparent buttons (Management & Data group) */
+.btn-transparent-dark {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #e2e8f0;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 0.75rem;
+}
+
+.btn-transparent-dark:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.btn-transparent-dark:disabled {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Polygon list styling */
+.polygon-list-container {
+  background-color: #1f2a3a;
+  border: 1px solid #334155;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.polygon-item {
+  background-color: #2d3748;
+  border: 1px solid #475569;
+  border-radius: 0.6rem;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.polygon-item:hover:not(.selected) {
+  background-color: #334155;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.polygon-item.selected {
+  background-color: #3b82f633;
+  border-color: #3b82f6;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+.polygon-item strong {
+  color: #e2e8f0;
+}
+
+.polygon-item input,
+.polygon-item select {
+  background-color: #1a202c;
+  border: 1px solid #475569;
+  color: #e2e8f0;
+  padding: 0.4rem 0.6rem;
+  border-radius: 0.375rem;
+  font-size: 0.8rem;
+}
+
+.polygon-item input:focus,
+.polygon-item select:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px #3b82f6;
+}
+
+.polygon-item .text-gray-400 {
+  color: #94a3b8;
+}
+
+.polygon-item .text-green-400 {
+  color: #a7f3d0;
+  background-color: rgba(16, 185, 129, 0.2);
+  font-weight: 500;
+}
+
+/* Summary section styling */
+.summary-block {
+  background: linear-gradient(145deg, #2d3748, #1a202c);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  padding: 1rem;
+  overflow: hidden;
+}
+
+.summary-block h4 {
+  color: #a7c0d8;
+}
+
+.summary-block .text-gray-200 {
+  color: #e2e8f0;
+}
+
+.summary-block .text-gray-300 {
+  color: #cbd5e1;
+}
+
+.summary-block .px-2.py-1 {
+  background-color: rgba(16, 185, 129, 0.2);
+  color: #a7f3d0;
+  border-radius: 0.375rem;
+}
+
+/* Loader Spin Animation */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.loader-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Custom Scrollbar for overflow-y-auto */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #2d3748;
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #60a5fa;
+  border-radius: 10px;
+  border: 2px solid #2d3748;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #3b82f6;
+}
