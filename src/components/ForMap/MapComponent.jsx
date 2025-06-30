@@ -275,7 +275,7 @@ export default function MapComponent({
           params={{
             layers: '1_TRUE_COLOR', 
             styles: '',
-            time: '2023-06-01/2024-06-30', 
+            time: '2024-06-01/2025-06-30', 
             maxcc: 80, 
           }}
           zIndex={1} 
