@@ -1,6 +1,6 @@
 // components/ForMap/MapComponent.jsx
 import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
-import { MapContainer, TileLayer, FeatureGroup, Polygon, useMapEvents, useMap, WMSTileLayer } from 'react-leaflet';
+import { MapContainer, TileLayer, FeatureGroup, Polygon, useMapEvents, useMap, WMSTileLayer, ImageOverlay } from 'react-leaflet';
 import { EditControl } from 'react-leaflet-draw';
 import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -8,7 +8,7 @@ import 'leaflet-draw/dist/leaflet.draw.css';
 
 import PolygonAndMarkerLayer from './PolygonAndMarkerLayer';
 
-// Fix for default Leaflet icon paths
+// Исправление для путей иконок Leaflet по умолчанию
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
@@ -16,7 +16,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
 });
 
-const INSTANCE_ID = 'f15c44d0-bbb8-4c66-b94e-6a8c7ab39349';
+const INSTANCE_ID = 'f15c44d0-bbb8-4c66-b94e-6a8c4ab39349'; // Убедитесь, что это ваш реальный Instance ID
 
 export default function MapComponent({
   polygons,
@@ -41,6 +41,7 @@ export default function MapComponent({
   setInfoBoxNdvi,
   infoBoxLoading,
   setInfoBoxLoading,
+  onPolygonSelect,
 }) {
   const [activeBaseLayerId, setActiveBaseLayerId] = useState('OSM');
 
@@ -48,26 +49,29 @@ export default function MapComponent({
   const [currentPath, setCurrentPath] = useState([]);
   const [hoveredPoint, setHoveredPoint] = useState(null);
 
+  const [maskedNdviImageUrl, setMaskedNdviImageUrl] = useState(null);
+  const [maskedNdviImageBounds, setMaskedNdviImageBounds] = useState(null);
+  const [maskedNdviImageLoading, setMaskedNdviImageLoading] = useState(false);
+
   const sentinelLayerOptions = [
     { id: 'OSM', name: 'OpenStreetMap' },
-    { id: '1_TRUE_COLOR', name: 'True Color' },
-    { id: '2_FALSE_COLOR', name: 'False Color' },
-    { id: '3_NDVI', name: 'NDVI' },
-    { id: '5-MOISTURE-INDEX1', name: 'Moisture Index' },
+    { id: '1_TRUE_COLOR', name: 'Истинный цвет' },
+    { id: '2_FALSE_COLOR', name: 'Ложный цвет' },
+    { id: '3_NDVI', name: 'NDVI (в полигоне)' },
+    { id: '5-MOISTURE-INDEX1', name: 'Индекс влажности' },
     { id: '6-SWIR', name: 'SWIR' },
     { id: '7-NDWI', name: 'NDWI' },
     { id: '8-NDSI', name: 'NDSI' },
-    { id: 'SCENE-CLASSIFICATION', name: 'Scene Classification' }
+    { id: 'SCENE-CLASSIFICATION', name: 'Классификация сцен' }
   ];
 
   const sentinelHubLayerNames = {
     '1_TRUE_COLOR': '1_TRUE_COLOR',
     '2_FALSE_COLOR': '2_FALSE_COLOR',
-    '3_NDVI': '3_NDVI',
     '5-MOISTURE-INDEX1': '5-MOISTURE-INDEX1',
     '6-SWIR': '6-SWIR',
-    '7-NDWI': '7-NDWI',
-    '8-NDSI': '8-NDSI',
+    '7-NDWI': '7_NDWI',
+    '8-NDSI': '8_NDSI',
     'SCENE-CLASSIFICATION': 'SCENE-CLASSIFICATION',
   };
 
@@ -111,7 +115,8 @@ export default function MapComponent({
     setInfoBoxLng,
     setInfoBoxNdvi,
     setInfoBoxLoading,
-    infoBoxVisible, // ✅ Добавлен пропс infoBoxVisible
+    infoBoxVisible,
+    onPolygonSelect,
   }) => {
     const map = useMap();
     const editControlRefInternal = useRef();
@@ -130,16 +135,12 @@ export default function MapComponent({
         if (!isDrawing) {
           const { lat, lng } = e.latlng;
 
-          // ✅ Устанавливаем видимость инфо-бокса только один раз, если он еще не виден.
-          // Это предотвращает лишние перерисовки, если он уже visible.
           if (!infoBoxVisible) {
             setInfoBoxVisible(true);
           }
 
           if (fetchTimeout.current) clearTimeout(fetchTimeout.current);
           fetchTimeout.current = setTimeout(async () => {
-            // ✅ ПЕРЕМЕЩЕНО: Обновляем lat/lng ТОЛЬКО здесь, когда запрос NDVI собирается идти.
-            // Это уменьшает частоту обновлений состояния.
             setInfoBoxLat(lat.toFixed(5));
             setInfoBoxLng(lng.toFixed(5));
 
@@ -164,7 +165,7 @@ export default function MapComponent({
               const data = await response.json();
               setInfoBoxNdvi(data.ndvi !== null ? data.ndvi.toFixed(4) : 'Нет данных');
             } catch (error) {
-              console.error('Error fetching NDVI:', error);
+              console.error('Ошибка при получении NDVI для координат:', error);
               setInfoBoxNdvi(`Ошибка: ${error.message ? error.message.substring(0, 50) + (error.message.length > 50 ? '...' : '') : 'Неизвестная ошибка'}`);
             } finally {
               setInfoBoxLoading(false);
@@ -234,6 +235,7 @@ export default function MapComponent({
             formatArea={formatArea}
             selectedPolygon={selectedPolygon}
             flyToMarker={flyToMarker}
+            onPolygonSelect={onPolygonSelect}
           />
         </FeatureGroup>
 
@@ -252,10 +254,7 @@ export default function MapComponent({
     );
   };
 
-  // ✅ Обертываем MapContentAndInteractions в React.memo для оптимизации.
-  // Это предотвратит ненужные перерисовки, если пропсы не изменились.
   const MemoizedMapContentAndInteractions = React.memo(MapContentAndInteractions);
-
 
   useEffect(() => {
     const fg = editableFGRef.current;
@@ -281,8 +280,90 @@ export default function MapComponent({
     }
   }, [isEditingMode, editingMapPolygon, editableFGRef]);
 
-  const onEdited = useCallback((e) => { }, []);
-  const onDeleted = useCallback((e) => { }, []);
+  useEffect(() => {
+    const fetchMaskedNdvi = async (polygonId, coordinates) => {
+      setMaskedNdviImageLoading(true);
+      setMaskedNdviImageUrl(null);
+      setMaskedNdviImageBounds(null);
+
+      console.log('Попытка загрузить маскированное NDVI для:', { polygonId, coordinates });
+
+      if (!polygonId ||
+          !coordinates ||
+          !Array.isArray(coordinates) ||
+          coordinates.length === 0 ||
+          !coordinates.every(point => Array.isArray(point) && point.length === 2 && typeof point[0] === 'number' && typeof point[1] === 'number')) {
+        console.log("Отмена запроса NDVI: ID полигона отсутствует или координаты имеют неверную структуру.");
+        setMaskedNdviImageLoading(false);
+        return;
+      }
+
+      try {
+        const token = localStorage.getItem('token');
+        console.log(`Отправка запроса на ${baseApiUrl}/api/v1/indices/ndvi-masked/${polygonId}`);
+        const response = await fetch(`${baseApiUrl}/api/v1/indices/ndvi-masked/${polygonId}`, {
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : undefined,
+          },
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => 'Не удалось прочитать тело ошибки');
+          throw new Error(`Ошибка HTTP! Статус: ${response.status}. Ответ: ${errorText.substring(0, 200)}`);
+        }
+
+        const blob = await response.blob();
+        const imageUrl = URL.createObjectURL(blob);
+        console.log('Изображение NDVI получено как Blob, создан URL:', imageUrl);
+
+        const leafletPolygon = L.polygon(coordinates);
+        const bounds = leafletPolygon.getBounds().toBBoxString().split(',').map(Number);
+        const imageBounds = [[bounds[1], bounds[0]], [bounds[3], bounds[2]]];
+        // ✅ НОВОЕ ЛОГИРОВАНИЕ: Более подробный вывод границ
+        console.log('Границы изображения (bounds):', imageBounds);
+
+
+        setMaskedNdviImageUrl(imageUrl);
+        setMaskedNdviImageBounds(imageBounds);
+        console.log('Маскированное NDVI изображение загружено и установлены границы:', imageBounds);
+
+      } catch (error) {
+        console.error('Ошибка при получении маскированного NDVI изображения:', error);
+        setMaskedNdviImageUrl(null);
+        setMaskedNdviImageBounds(null);
+      } finally {
+        setMaskedNdviImageLoading(false);
+      }
+    };
+
+    const currentActivePolygon = selectedPolygon || (isEditingMode ? editingMapPolygon : null);
+
+    console.log('Текущий активный слой:', activeBaseLayerId);
+    console.log('Текущий активный полигон ID:', currentActivePolygon ? currentActivePolygon.id : 'нет');
+    console.log('Текущие координаты полигона:', currentActivePolygon ? currentActivePolygon.coordinates : 'нет');
+
+    if (activeBaseLayerId === '3_NDVI' && currentActivePolygon && currentActivePolygon.id && currentActivePolygon.coordinates) {
+      fetchMaskedNdvi(currentActivePolygon.id, currentActivePolygon.coordinates);
+    } else {
+      if (maskedNdviImageUrl) {
+        URL.revokeObjectURL(maskedNdviImageUrl);
+      }
+      setMaskedNdviImageUrl(null);
+      setMaskedNdviImageBounds(null);
+    }
+
+    return () => {
+      if (maskedNdviImageUrl) {
+        URL.revokeObjectURL(maskedNdviImageUrl);
+      }
+    };
+  }, [activeBaseLayerId, selectedPolygon, isEditingMode, editingMapPolygon, baseApiUrl]);
+
+  const onEdited = useCallback((e) => {
+  }, [onPolygonEdited]);
+
+  const onDeleted = useCallback((e) => {
+  }, []);
 
   return (
     <MapContainer
@@ -291,12 +372,46 @@ export default function MapComponent({
       style={{ flexGrow: 1, height: '100vh', width: '100%' }}
       whenCreated={mapInstance => { mapRef.current = mapInstance; }}
     >
-      {activeBaseLayerId === 'OSM' ? (
-        <TileLayer
-          attribution="© OpenStreetMap contributors"
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      {/* Всегда отображаем OpenStreetMap как базовый слой */}
+      <TileLayer
+        attribution="© OpenStreetMap contributors"
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
+
+      {/* ✅ ОТОБРАЖЕНИЕ МАСКИРОВАННОГО ИЗОБРАЖЕНИЯ NDVI */}
+      {activeBaseLayerId === '3_NDVI' && maskedNdviImageUrl && maskedNdviImageBounds && (
+        <ImageOverlay
+          url={maskedNdviImageUrl}
+          bounds={maskedNdviImageBounds}
+          opacity={0.7}
+          zIndex={5} // ✅ ДОБАВЛЕНО: Устанавливаем z-index для отображения поверх базовой карты
         />
-      ) : (
+      )}
+      {/* Индикатор загрузки для маскированного изображения */}
+      {activeBaseLayerId === '3_NDVI' && maskedNdviImageLoading && (
+        <div style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          zIndex: 1000,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          color: 'white',
+          padding: '15px 30px',
+          borderRadius: '8px',
+          boxShadow: '0 4px 10px rgba(0,0,0,0.2)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '10px'
+        }}>
+          <span className="loader-spin h-6 w-6 border-4 border-t-4 border-white-500 rounded-full inline-block"></span>
+          Загрузка NDVI изображения...
+        </div>
+      )}
+
+      {/* Условное отображение для других слоев Sentinel Hub (которые не маскируются на фронтенде) */}
+      {activeBaseLayerId !== 'OSM' && activeBaseLayerId !== '3_NDVI' && (
         <WMSTileLayer
           attribution="Sentinel Hub"
           url={`${baseApiUrl}/api/v1/indices/wms-proxy/${INSTANCE_ID}`}
@@ -307,13 +422,13 @@ export default function MapComponent({
           params={{
             layers: sentinelHubLayerNames[activeBaseLayerId],
             styles: '',
-            time: '2024-05-03/2024-05-30', // ✅ Убедитесь, что используете прошедший диапазон дат!
+            time: '2024-05-03/2024-05-30',
             maxcc: 20,
           }}
         />
       )}
 
-      {/* ✅ Используем MemoizedMapContentAndInteractions */}
+      {/* Основное содержимое карты и интеракции (полигоны, маркеры, рисование) */}
       <MemoizedMapContentAndInteractions
         isDrawing={isDrawing}
         currentPath={currentPath}
@@ -324,7 +439,7 @@ export default function MapComponent({
         setInfoBoxLat={setInfoBoxLat}
         setInfoBoxLng={setInfoBoxLng}
         setInfoBoxVisible={setInfoBoxVisible}
-        infoBoxVisible={infoBoxVisible} // Передаем состояние
+        infoBoxVisible={infoBoxVisible}
         setInfoBoxLoading={setInfoBoxLoading}
         setInfoBoxNdvi={setInfoBoxNdvi}
         polygons={polygons}
@@ -336,8 +451,10 @@ export default function MapComponent({
         onDeleted={onDeleted}
         calculateArea={calculateArea}
         formatArea={formatArea}
+        onPolygonSelect={onPolygonSelect}
       />
 
+      {/* Инфо-бокс с координатами и NDVI точки */}
       {infoBoxVisible && (
         <div style={{
           position: 'fixed',
@@ -399,4 +516,3 @@ export default function MapComponent({
     </MapContainer>
   );
 }
-
