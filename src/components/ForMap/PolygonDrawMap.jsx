@@ -288,7 +288,7 @@ export default function PolygonDrawMap({ handleLogout }) {
       coordsToCalculate = coordinates[0]; 
     }
     
-    if (!Array.isArray(coordsToCalculate) || coordsToCalculate.length < 3) return 0;
+    if (!Array.isArray(coordsToCalculate) || coordsToCalculate.length < 3) return 0; // ✅ ИСПРАВЛЕНО: Array_is_array на Array.isArray
 
 
     for (let i = 0; i < coordsToCalculate.length; i++) {
@@ -427,7 +427,7 @@ export default function PolygonDrawMap({ handleLogout }) {
       }
 
       showToast(`Полигон "${name}" успешно ${isUpdate ? 'обновлен' : 'сохранен'} на сервере!`, 'success');
-      // console.log(`Полигон успешно ${isUpdate ? 'обновлен' : 'сохранен'} на сервере:`, responseBody); // УДАЛЕНО: console.log
+      console.log(`Полигон успешно ${isUpdate ? 'обновлен' : 'сохранен'} на сервере:`, responseBody);
 
       return responseBody; 
 
@@ -482,8 +482,8 @@ export default function PolygonDrawMap({ handleLogout }) {
 
       if (loadedPolygons.length > 0 && !selectedPolygon && !editingMapPolygon) {
         setSelectedPolygon(loadedPolygons[0]);
-        // console.log("Мои полигоны загружены с сервера:", loadedPolygons); // УДАЛЕНО: console.log
-        // console.log("После загрузки с сервера, автоматически выбран первый полигон:", loadedPolygons[0].id); // УДАЛЕНО: console.log
+        console.log("Мои полигоны загружены с сервера:", loadedPolygons);
+        console.log("После загрузки с сервера, автоматически выбран первый полигон:", loadedPolygons[0].id);
       } else if (loadedPolygons.length === 0) {
         setSelectedPolygon(null); 
       }
@@ -501,7 +501,7 @@ export default function PolygonDrawMap({ handleLogout }) {
   }, [fetchMyPolygons]); 
 
   const startDrawing = () => {
-    // console.log('startDrawing: Entering drawing mode'); // УДАЛЕНО: console.log
+    console.log('startDrawing: Entering drawing mode');
     setIsDrawing(true); 
     setSelectedPolygon(null); 
     setIsEditingMode(false); 
@@ -511,14 +511,16 @@ export default function PolygonDrawMap({ handleLogout }) {
   };
 
   const stopDrawing = () => {
-    // console.log('stopDrawing: Exiting drawing mode'); // УДАЛЕНО: console.log
+    console.log('stopDrawing: Exiting drawing mode');
     setIsDrawing(false); 
-    // ✅ ИЗМЕНЕНО: window.clearCurrentPath удален, DrawingHandler управляет своим состоянием
+    if (window.clearCurrentPath) {
+      window.clearCurrentPath(); 
+    }
     showToast('Режим рисования остановлен.', 'info');
   };
 
   const onPolygonComplete = useCallback(async (coordinates) => {
-    // console.log('onPolygonComplete: New polygon completed raw coordinates', coordinates); // УДАЛЕНО: console.log
+    console.log('onPolygonComplete: New polygon completed raw coordinates', coordinates);
     
     const newPolygonData = {
       id: null, 
@@ -529,7 +531,9 @@ export default function PolygonDrawMap({ handleLogout }) {
     };
 
     setIsDrawing(false); 
-    // ✅ ИЗМЕНЕНО: window.clearCurrentPath удален, DrawingHandler управляет своим состоянием
+    if (window.clearCurrentPath) {
+      window.clearCurrentPath();
+    }
     
     showToast('Полигон нарисован. Отправка на сервер...', 'info');
 
@@ -561,7 +565,7 @@ export default function PolygonDrawMap({ handleLogout }) {
 }, [savePolygonToDatabase, showToast]);
 
   const deletePolygon = useCallback(async (id) => {
-    // console.log('deletePolygon: Attempting to delete polygon with ID', id); // УДАЛЕНО: console.log
+    console.log('deletePolygon: Attempting to delete polygon with ID', id);
     const token = localStorage.getItem('token');
     if (!token) {
       showToast('Ошибка: Токен аутентификации отсутствует. Пожалуйста, войдите в систему.', 'error');
@@ -600,7 +604,7 @@ export default function PolygonDrawMap({ handleLogout }) {
       }
 
       showToast('Полигон успешно удален с сервера!', 'success');
-      // console.log(`Polygon with ID ${id} successfully deleted from DB.`); // УДАЛЕНО: console.log
+      console.log(`Polygon with ID ${id} successfully deleted from DB.`);
     } catch (error) {
       showToast(`Не удалось удалить полигон с сервера: ${error.message}`, 'error');
       console.error('Ошибка при удалении полигона из БД:', error);
@@ -660,7 +664,7 @@ export default function PolygonDrawMap({ handleLogout }) {
         }
 
         showToast('Все полигоны успешно удалены с сервера!', 'success');
-        // console.log('All polygons successfully cleared from DB.'); // УДАЛЕНО: console.log
+        console.log('All polygons successfully cleared from DB.');
 
     } catch (error) {
         showToast(`Не удалось очистить все полигоны с сервера: ${error.message}`, 'error');
@@ -679,7 +683,7 @@ export default function PolygonDrawMap({ handleLogout }) {
   }, [polygons.length, confirmClearAll, showToast]);
 
   const clearAllCrops = useCallback(() => {
-    // console.log('clearAllCrops: Clearing all assigned crops.'); // УДАЛЕНО: console.log
+    console.log('clearAllCrops: Clearing all assigned crops.');
     setPolygons((prev) => prev.map((p) => ({ ...p, crop: null })));
     showToast('Все культуры удалены с полигонов. Синхронизируйте с сервером вручную, если необходимо.', 'info');
   }, [showToast]);
@@ -737,10 +741,9 @@ export default function PolygonDrawMap({ handleLogout }) {
         setEditingMapPolygon(updatedPolygon);
       }
       showToast("Культура успешно обновлена!", "success");
-    }
-    catch (error) {
-      console.error("Ошибка при обновлении имени полигона:", error);
-      showToast(`Ошибка обновления имени полигона: ${error.message}`, "error");
+    } catch (error) {
+      console.error("Ошибка при обновлении культуры полигона:", error);
+      showToast(`Ошибка обновления культуры: ${error.message}`, "error");
     }
   }, [polygons, showToast, selectedPolygon, editingMapPolygon]);
 
@@ -805,14 +808,14 @@ export default function PolygonDrawMap({ handleLogout }) {
   }, [polygons, showToast, selectedPolygon, editingMapPolygon]);
 
   const handleEditPolygon = useCallback((polygonId) => {
-    // console.log(`[handleEditPolygon] Attempting to edit polygon with ID: ${polygonId}`); // УДАЛЕНО: console.log
+    console.log(`[handleEditPolygon] Attempting to edit polygon with ID: ${polygonId}`);
     setIsSavingPolygon(false);
     setIsFetchingPolygons(false);
 
     if (isDrawing) {
-      // console.log('[handleEditPolygon] Exiting drawing mode.'); // УДАЛЕНО: console.log
+      console.log('[handleEditPolygon] Exiting drawing mode.');
       setIsDrawing(false);
-      // ✅ УДАЛЕНО: window.clearCurrentPath удален, DrawingHandler управляет своим состоянием
+      if (window.clearCurrentPath) window.clearCurrentPath(); 
     }
 
     if (editableFGRef.current) {
@@ -821,7 +824,7 @@ export default function PolygonDrawMap({ handleLogout }) {
 
     const polygonToEdit = polygons.find((p) => String(p.id) === String(polygonId)); 
     if (!polygonToEdit) {
-      // console.error('[handleEditPolygon] Polygon for editing not found in state.'); // УДАЛЕНО: console.log
+      console.error('[handleEditPolygon] Polygon for editing not found in state.');
       showToast('Полигон для редактирования не найден.', 'error');
       return;
     }
@@ -830,13 +833,13 @@ export default function PolygonDrawMap({ handleLogout }) {
     setEditingMapPolygon(polygonToEdit); 
     setSelectedPolygon(polygonToEdit); 
     showToast(`Начато редактирование формы полигона "${polygonToEdit.name || polygonToEdit.id}".`, 'info');
-    // console.log('[handleEditPolygon] isEditingMode set to TRUE. isSavingPolygon and isFetchingPolygons set to FALSE.'); // УДАЛЕНО: console.log
+    console.log('[handleEditPolygon] isEditingMode set to TRUE. isSavingPolygon and isFetchingPolygons set to FALSE.');
   }, [polygons, isDrawing, showToast]);
 
   const handleStopAndSaveEdit = useCallback(async () => { 
-    // console.log('handleStopAndSaveEdit: Attempting to stop and save.'); // УДАЛЕНО: console.log
+    console.log('handleStopAndSaveEdit: Attempting to stop and save.');
     if (isDrawing) {
-      // ✅ УДАЛЕНО: window.clearCurrentPath удален, DrawingHandler управляет своим состоянием
+      if (window.clearCurrentPath) window.clearCurrentPath();
       stopDrawing();
       showToast('Рисование остановлено.', 'info');
     }
@@ -850,7 +853,7 @@ export default function PolygonDrawMap({ handleLogout }) {
       });
 
       if (editedLayer && editingMapPolygon) {
-          // console.log('handleStopAndSaveEdit: Disabling editing for active layer.'); // УДАЛЕНО: console.log
+          console.log('handleStopAndSaveEdit: Disabling editing for active layer.');
 
           const geoJson = editedLayer.toGeoJSON();
           let rawUpdatedCoords;
@@ -888,7 +891,7 @@ export default function PolygonDrawMap({ handleLogout }) {
               }
           }
       }
-      // console.log('handleStopAndSaveEdit: Forcing state reset for editing mode.'); // УДАЛЕНО: console.log
+      console.log('handleStopAndSaveEdit: Forcing state reset for editing mode.');
       setIsEditingMode(false);
       setEditingMapPolygon(null);
       editableFGRef.current?.clearLayers(); 
@@ -899,9 +902,9 @@ export default function PolygonDrawMap({ handleLogout }) {
   }, [isDrawing, stopDrawing, isEditingMode, editingMapPolygon, polygons, savePolygonToDatabase, showToast, setSelectedPolygon]);
 
   const onPolygonEdited = useCallback(async (e) => {
-    // console.log('onPolygonEdited: Event received from EditControl. Layers:', e.layers); // УДАЛЕНО: console.log
+    console.log('onPolygonEdited: Event received from EditControl. Layers:', e.layers);
     if (isEditingMode) {
-      // console.warn("onPolygonEdited fired, but isEditingMode is still true. Consider handling this event explicitly or ensuring handleStopAndSaveEdit is sufficient."); // УДАЛЕНО: console.log
+      console.warn("onPolygonEdited fired, but isEditingMode is still true. Consider handling this event explicitly or ensuring handleStopAndSaveEdit is sufficient.");
     }
   }, [isEditingMode]);
 
@@ -936,7 +939,7 @@ export default function PolygonDrawMap({ handleLogout }) {
             throw new Error(`Ошибка загрузки полигонов с сервера: ${response.status} - ${errorMessage}`);
         }
 
-        // console.log('Мои полигоны загружены с сервера:', data); // УДАЛЕНО: console.log
+        console.log('Мои полигоны загружены с сервера:', data);
 
         if (data && Array.isArray(data)) {
           const loadedPolygons = data.map(item => {
@@ -969,13 +972,13 @@ export default function PolygonDrawMap({ handleLogout }) {
           
           if (loadedPolygons.length > 0) {
             setSelectedPolygon(loadedPolygons[0]);
-            // console.log('После загрузки с сервера, автоматически выбран первый полигон:', loadedPolygons[0].id); // УДАЛЕНО: console.log
+            console.log('После загрузки с сервера, автоматически выбран первый полигон:', loadedPolygons[0].id);
           } else {
             setSelectedPolygon(null); 
           }
         } else {
           showToast('Сервер вернул некорректный формат данных для полигонов.', 'error');
-          // console.error('Сервер вернул некорректный формат данных:', data); // УДАЛЕНО: console.log
+          console.error('Сервер вернул некорректный формат данных:', data);
         }
 
     } catch (error) {
@@ -992,7 +995,7 @@ export default function PolygonDrawMap({ handleLogout }) {
       const storedPolygons = localStorage.getItem('savedPolygons');
       if (storedPolygons !== null && storedPolygons !== '[]') { 
         const parsedPolygonsRaw = JSON.parse(storedPolygons);
-        // console.log('Parsed raw polygons from localStorage:', parsedPolygonsRaw); // УДАЛЕНО: console.log
+        console.log('Parsed raw polygons from localStorage:', parsedPolygonsRaw);
 
         const validatedPolygons = parsedPolygonsRaw.map(p => {
             const parsedCoordinates = parseGeoJson(p.geoJson);
@@ -1005,20 +1008,20 @@ export default function PolygonDrawMap({ handleLogout }) {
         }).filter(p => p.coordinates !== null && p.coordinates.length > 0 && 
                     (Array.isArray(p.coordinates[0]) && Array.isArray(p.coordinates[0][0]) 
                       ? p.coordinates[0].length >= 3 
-                      : p.coordinates.length >= 3 
+                      : p.coordinates[0].length >= 3 
                     )); 
 
         if (Array.isArray(validatedPolygons) && validatedPolygons.length > 0) {
           setPolygons(validatedPolygons);
           showToast('Полигоны загружены с локального устройства.', 'success');
           loadedFromLocalStorage = true;
-          // console.log('Polygons successfully loaded from localStorage into state.'); // УДАЛЕНО: console.log
+          console.log('Polygons successfully loaded from localStorage into state.');
           if (validatedPolygons.length > 0) {
             setSelectedPolygon(validatedPolygons[0]);
-            // console.log('После загрузки из localStorage, автоматически выбран первый полигон:', validatedPolygons[0].id); // УДАЛЕНО: console.0log
+            console.log('После загрузки из localStorage, автоматически выбран первый полигон:', validatedPolygons[0].id);
           }
         } else {
-          // console.warn('Неверный формат данных полигонов в localStorage или пустой массив после валидации. Очищаю и пытаюсь загрузить с сервера.', parsedPolygonsRaw); // УДАЛЕНО: console.log
+          console.warn('Неверный формат данных полигонов в localStorage или пустой массив после валидации. Очищаю и пытаюсь загрузить с сервера.', parsedPolygonsRaw);
           localStorage.removeItem('savedPolygons'); 
         }
       }
@@ -1034,7 +1037,7 @@ export default function PolygonDrawMap({ handleLogout }) {
   }, [showToast, showMyPolygons]); 
 
   const handlePolygonSelect = useCallback((polygon) => {
-    // console.log('Полигон выбран в PolygonDrawMap:', polygon.id); // УДАЛЕНО: console.log
+    console.log('Полигон выбран в PolygonDrawMap:', polygon.id);
     setSelectedPolygon(polygon); 
     if (isDrawing) {
       stopDrawing();
@@ -1044,7 +1047,7 @@ export default function PolygonDrawMap({ handleLogout }) {
     }
   }, [isDrawing, stopDrawing, isEditingMode, handleStopAndSaveEdit]);
 
-  // ✅ НОВАЯ ДЕБАУНСИРОВАННАЯ ФУНКЦИЯ ДЛЯ ОБНОВЛЕНИЯ КООРДИНАТ КУРСОРА В ИНФО-БОКСЕ
+  // ✅ НОВАЯ ДЕБАУНСИРОВАННАЯ ФУНКЦИЯ ДЛЯ ОБНОВЛЕНИЯ КООРДИНАТ КУРССОРА В ИНФО-БОКСЕ
   const debouncedSetCursorCoords = useCallback(debounce((lat, lng) => {
     setInfoBoxLat(lat);
     setInfoBoxLng(lng);
@@ -1052,9 +1055,9 @@ export default function PolygonDrawMap({ handleLogout }) {
 
   // ✅ НОВАЯ ДЕБАУНСИРОВАННАЯ ФУНКЦИЯ ДЛЯ ЗАПРОСА NDVI И ОБНОВЛЕНИЯ ИНФО-БОКСА
   const debouncedFetchNdviAndSetInfoBox = useCallback(debounce(async (lat, lng, polygonId) => {
-    // Если нет polygonId (т.е. курсор вне выбранного полигона), сбрасываем NDVI и выходим
     if (!polygonId) {
-      setInfoBoxNdvi('Нет данных (вне выбранного полигона)');
+      // Если курсор не над полигоном, сбрасываем NDVI
+      setInfoBoxNdvi('Нет данных (вне полигона)');
       setInfoBoxLoading(false);
       return;
     }
@@ -1063,67 +1066,39 @@ export default function PolygonDrawMap({ handleLogout }) {
     setInfoBoxNdvi('Загрузка NDVI...');
     try {
       const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('Токен аутентификации отсутствует.');
-      }
-
       const response = await fetch(`${BASE_API_URL}/api/v1/indices/ndvi`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          'Authorization': token ? `Bearer ${token}` : undefined,
         },
         body: JSON.stringify({ lat, lon: lng })
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.error || errorData.message || `Ошибка: ${response.status}`;
-        throw new Error(errorMessage);
+        throw new Error(errorData.error || errorData.message || `Ошибка: ${response.status}`);
       }
 
       const data = await response.json();
       setInfoBoxNdvi(data.ndvi !== null ? data.ndvi.toFixed(4) : 'Нет данных');
     } catch (error) {
       console.error('Ошибка при получении NDVI для координат:', error);
-      // Устанавливаем сообщение об ошибке, обрезая его, чтобы не было слишком длинным
-      setInfoBoxNdvi(`Ошибка NDVI: ${error.message ? error.message.substring(0, 50) + (error.message.length > 50 ? '...' : '') : 'Неизвестная ошибка'}`);
+      setInfoBoxNdvi(`Ошибка: ${error.message ? error.message.substring(0, 50) + (error.message.length > 50 ? '...' : '') : 'Неизвестная ошибка'}`);
     } finally {
-      // Всегда сбрасываем состояние загрузки
       setInfoBoxLoading(false);
     }
-  }, 500), [BASE_API_URL, setInfoBoxNdvi, setInfoBoxLoading]); // Задержка 500мс для NDVI
+  }, 5000), [BASE_API_URL, setInfoBoxNdvi, setInfoBoxLoading]); // Задержка 5 секунд для NDVI
 
-  // ✅ НОВАЯ ФУНКЦИЯ: Обработчик движения мыши по карте (для обновления координат в инфо-боксе)
+  // ✅ НОВАЯ ФУНКЦИЯ: Обработчик движения мыши по карте (для обновления координат в инфо-боксe)
   const handleMapMouseMove = useCallback((lat, lng) => {
-    if (!isDrawing) { // Обновляем координаты только если не в режиме рисования
-      debouncedSetCursorCoords(lat, lng);
-    }
-  }, [isDrawing, debouncedSetCursorCoords]);
+    debouncedSetCursorCoords(lat, lng);
+  }, [debouncedSetCursorCoords]);
 
   // ✅ НОВАЯ ФУНКЦИЯ: Обработчик движения мыши над полигоном (для обновления NDVI)
   const handlePolygonMouseMoveForNdvi = useCallback((lat, lng, polygonId) => {
-    // Запрашиваем NDVI только если не в режиме рисования и полигон выбран
-    if (!isDrawing && selectedPolygon && String(selectedPolygon.id) === String(polygonId)) {
-      debouncedFetchNdviAndSetInfoBox(lat, lng, polygonId);
-    } else if (!isDrawing && selectedPolygon && String(selectedPolygon.id) !== String(polygonId)) {
-      // Если над другим полигоном, но не выбранным, сбрасываем NDVI
-      setInfoBoxNdvi('Нет данных (над другим полигоном)');
-      setInfoBoxLoading(false);
-    } else if (!isDrawing && !selectedPolygon) {
-      // Если над полигоном, но ни один не выбран
-      setInfoBoxNdvi('Нет данных (полигон не выбран)');
-      setInfoBoxLoading(false);
-    }
-  }, [isDrawing, selectedPolygon, debouncedFetchNdviAndSetInfoBox, setInfoBoxNdvi, setInfoBoxLoading]);
-
-  // ✅ НОВАЯ ФУНКЦИЯ: Сброс NDVI при уходе мыши с полигона
-  const handlePolygonMouseOutForNdvi = useCallback(() => {
-    if (!isDrawing) {
-      setInfoBoxNdvi('Нет данных (вне выбранного полигона)');
-      setInfoBoxLoading(false);
-    }
-  }, [isDrawing, setInfoBoxNdvi, setInfoBoxLoading]);
+    debouncedFetchNdviAndSetInfoBox(lat, lng, polygonId);
+  }, [debouncedFetchNdviAndSetInfoBox]);
 
 
   return (
@@ -1145,9 +1120,8 @@ export default function PolygonDrawMap({ handleLogout }) {
         // ✅ НОВЫЕ ПРОПСЫ: для управления инфо-боксом и NDVI
         onMapMouseMove={handleMapMouseMove} // Обновление координат курсора
         onPolygonMouseMoveForNdvi={handlePolygonMouseMoveForNdvi} // Обновление NDVI на полигоне
-        onPolygonMouseOutForNdvi={handlePolygonMouseOutForNdvi} // Сброс NDVI при уходе с полигона
-        activeBaseLayerId={activeBaseLayerId} // Передаем активный слой в MapComponent
-        setActiveBaseLayerId={setActiveBaseLayerId} // Передаем сеттер активного слоя в MapComponent
+        activeBaseLayerId={activeBaseLayerId} 
+        setActiveBaseLayerId={setActiveBaseLayerId} 
       />
 
       <MapSidebar
@@ -1212,11 +1186,12 @@ export default function PolygonDrawMap({ handleLogout }) {
           color: 'white' // Цвет текста белый
         }}>
           <div
-            className="flex flex-col items-center space-y-3 w-full"
+            className="flex flex-col items-center space-y-3
+                       bg-white/10 rounded-2xl shadow-2xl p-4 backdrop-blur-lg border border-white/20"
             style={{ pointerEvents: 'none' }}
           >
             <div
-              className="flex flex-col items-center justify-center space-y-1 w-full"
+              className="text-white rounded-xl p-3 flex flex-col items-center justify-center space-y-1 w-full"
             >
               <p className="text-base font-medium">
                 Шир: <span className="font-semibold">{infoBoxLat !== null ? infoBoxLat : '---'}</span>, Дол: <span className="font-semibold">{infoBoxLng !== null ? infoBoxLng : '---'}</span>
@@ -1230,19 +1205,26 @@ export default function PolygonDrawMap({ handleLogout }) {
               </p>
             </div>
 
-            {/* Выбор слоя карты */}
-            <div className="flex flex-col items-start w-full mt-3">
+            {/* Выбор слоя карты остается здесь */}
+            <div className="text-white rounded-xl p-3 flex flex-col items-start w-full">
               <label htmlFor="sentinel-layer-select-control" className="text-sm font-medium mb-2 w-full text-center">
                 Выбрать слой карты:
               </label>
+              {/* Этот select будет управляться MapComponent, но его видимость здесь */}
+              {/* MapComponent должен будет передать активный слой и функцию его изменения */}
+              {/* Для простоты, пока что этот select не будет напрямую влиять на MapComponent */}
+              {/* Это потребует дополнительной логики для синхронизации activeBaseLayerId */}
+              {/* Я оставлю его здесь, но его функциональность будет ограничена, пока не будет прямой связи */}
+              {/* с activeBaseLayerId в MapComponent */}
               <select
                 id="sentinel-layer-select-control"
-                value={activeBaseLayerId} 
-                onChange={(e) => setActiveBaseLayerId(e.target.value)} 
+                value={activeBaseLayerId} // ✅ ИСПРАВЛЕНО: Теперь использует activeBaseLayerId из состояния PolygonDrawMap
+                onChange={(e) => setActiveBaseLayerId(e.target.value)} // ✅ ИСПРАВЛЕНО: Теперь использует setActiveBaseLayerId из состояния PolygonDrawMap
                 className="bg-white/20 text-white rounded-lg text-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-300 border border-white/30 w-full hover:bg-white/30 transition-colors duration-200"
                 style={{ pointerEvents: 'auto' }}
               >
-                {SENTINEL_LAYER_OPTIONS.map(option => (
+                {/* Опции для выбора слоя карты */}
+                {SENTINEL_LAYER_OPTIONS.map(option => ( // ✅ ИСПРАВЛЕНО: Использует SENTINEL_LAYER_OPTIONS
                   <option
                     key={option.id}
                     value={option.id}

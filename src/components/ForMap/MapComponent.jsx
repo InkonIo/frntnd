@@ -36,7 +36,6 @@ const SENTINEL_LAYER_OPTIONS = [
 ];
 
 // --- Утилита для Debounce (для функций, которые не должны вызываться слишком часто) ---
-// ✅ ИЗМЕНЕНО: Добавлен метод cancel для очистки таймаута
 const debounce = (func, delay) => {
   let timeout;
   const debounced = function(...args) {
@@ -66,10 +65,9 @@ export default function MapComponent({
   onPolygonSelect,
   activeBaseLayerId, 
   setActiveBaseLayerId, 
-  // НОВЫЕ ПРОПСЫ: для управления инфо-боксом и NDVI
-  onMapMouseMove, 
-  onPolygonMouseMoveForNdvi, 
-  onPolygonMouseOutForNdvi, 
+  // УДАЛЕНО: Пропсы для управления инфо-боксом и NDVI
+  // onMapMouseMove, 
+  // onPolygonMouseMoveForNdvi, 
 }) {
   const mapRef = useRef();
 
@@ -103,29 +101,25 @@ export default function MapComponent({
     formatArea,
     onPolygonSelect,
     setIsDrawing, 
-    // НОВЫЕ ПРОПСЫ: для управления инфо-боксом и NDVI
-    onMapMouseMove, 
-    onPolygonMouseMoveForNdvi, 
-    onPolygonMouseOutForNdvi, 
+    // УДАЛЕНО: Пропсы для управления инфо-боксом и NDVI
+    // onMapMouseMove, 
+    // onPolygonMouseMoveForNdvi, 
   }) => {
     const map = useMap();
     const editControlRefInternal = useRef();
     
-    const flyToMarker = useCallback((center, zoom) => {
+    const flyToMarker = useCallback((center, zoom = 16) => { 
       map.flyTo(center, zoom);
     }, [map]);
 
-    // ОБРАБОТЧИКИ СОБЫТИЙ КАРТЫ ДЛЯ ИНФО-БОКСА
-    useMapEvents({
-      mousemove: (e) => {
-        // Вызываем коллбэк для обновления координат в инфо-боксе
-        onMapMouseMove(e.latlng.lat, e.latlng.lng); // Передаем полные числа, форматирование в PolygonDrawMap
-      },
-      mouseout: () => {
-        // Скрываем инфо-бокс или сбрасываем его состояние при уходе мыши с карты
-        onPolygonMouseOutForNdvi(); // Используем этот коллбэк для сброса
-      }
-    });
+    // УДАЛЕНО: ОБРАБОТЧИКИ СОБЫТИЙ КАРТЫ ДЛЯ ИНФО-БОКСА
+    // useMapEvents({
+    //   mousemove: (e) => {
+    //     onMapMouseMove(e.latlng.lat, e.latlng.lng); 
+    //   },
+    //   mouseout: () => {
+    //   }
+    // });
 
     return (
       <>
@@ -150,11 +144,10 @@ export default function MapComponent({
             calculateArea={calculateArea}
             formatArea={formatArea}
             selectedPolygon={selectedPolygon}
-            flyToMarker={flyToMarker}
+            flyToMarker={flyToMarker} 
             onPolygonSelect={onPolygonSelect}
-            // НОВЫЕ ПРОПСЫ: для управления инфо-боксом и NDVI
-            onPolygonMouseMoveForNdvi={onPolygonMouseMoveForNdvi} 
-            onPolygonMouseOutForNdvi={onPolygonMouseOutForNdvi} 
+            // УДАЛЕНО: Пропсы для управления инфо-боксом и NDVI
+            // onPolygonMouseMoveForNdvi={onPolygonMouseMoveForNdvi} 
           />
         </FeatureGroup>
 
@@ -168,9 +161,7 @@ export default function MapComponent({
     );
   }); 
 
-  // ✅ НОВАЯ ДЕБАУНСИРОВАННАЯ ФУНКЦИЯ ДЛЯ ЗАПРОСА МАСКИРОВАННЫХ ИЗОБРАЖЕНИЙ
-  // ИСПОЛЬЗУЕМ useMemo, чтобы debouncedFetchMaskedOverlayImage создавалась только один раз
-  const debouncedFetchMaskedOverlayImage = useMemo(() => debounce(async (polygonId, coordinates, layerId) => {
+  const debouncedFetchMaskedOverlayImage = useMemo(() => debounce(async (polygon, layerId) => { 
     if (fetchControllerRef.current) {
         fetchControllerRef.current.abort();
     }
@@ -181,18 +172,14 @@ export default function MapComponent({
     setMaskedOverlayImageUrl(null);
     setMaskedOverlayImageBounds(null);
 
-    if (!polygonId ||
-        !coordinates ||
-        !Array.isArray(coordinates) ||
-        coordinates.length === 0 ||
-        !coordinates.every(point => Array.isArray(point) && point.length === 2 && typeof point[0] === 'number' && typeof point[1] === 'number')) {
+    if (!polygon || !polygon.id || !polygon.coordinates || !Array.isArray(polygon.coordinates) || polygon.coordinates.length === 0 || !polygon.coordinates.every(point => Array.isArray(point) && point.length === 2 && typeof point[0] === 'number' && typeof point[1] === 'number')) {
       setMaskedOverlayImageLoading(false);
       return;
     }
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${baseApiUrl}/api/v1/indices/masked-index/${polygonId}/${layerId}`, {
+      const response = await fetch(`${baseApiUrl}/api/v1/indices/masked-index/${polygon.id}/${layerId}`, { 
         headers: {
           'Authorization': token ? `Bearer ${token}` : undefined,
         },
@@ -210,7 +197,7 @@ export default function MapComponent({
       const blob = await response.blob();
       const imageUrl = URL.createObjectURL(blob);
 
-      const leafletPolygon = L.polygon(coordinates);
+      const leafletPolygon = L.polygon(polygon.coordinates); 
       const bounds = leafletPolygon.getBounds().toBBoxString().split(',').map(Number);
       const imageBounds = [[bounds[1], bounds[0]], [bounds[3], bounds[2]]];
 
@@ -229,43 +216,33 @@ export default function MapComponent({
           setMaskedOverlayImageLoading(false);
       }
     }
-  }, 500), [baseApiUrl]); // ✅ ИЗМЕНЕНО: Зависимости useMemo только от baseApiUrl
+  }, 500), [baseApiUrl]); 
 
   useEffect(() => {
     const currentActivePolygon = selectedPolygon || (isEditingMode ? editingMapPolygon : null);
     const activeLayerType = currentLayerOptions ? currentLayerOptions.type : '';
 
-    // ✅ ИЗМЕНЕНО: Зависимости useEffect теперь более строгие
-    // Запрос отправляется только если:
-    // 1. Выбран маскированный слой (например, NDVI)
-    // 2. Есть активный полигон (выбранный или редактируемый)
-    // 3. У активного полигона есть ID и координаты
     if (activeLayerType === 'masked_overlay' && currentActivePolygon && currentActivePolygon.id && currentActivePolygon.coordinates) {
-        debouncedFetchMaskedOverlayImage(currentActivePolygon.id, currentActivePolygon.coordinates, activeBaseLayerId);
+        debouncedFetchMaskedOverlayImage(currentActivePolygon, activeBaseLayerId); 
     } else {
-        // Если условия не выполняются, очищаем изображение и отменяем ожидающие запросы
         if (maskedOverlayImageUrl) {
             URL.revokeObjectURL(maskedOverlayImageUrl);
         }
         setMaskedOverlayImageUrl(null);
         setMaskedOverlayImageBounds(null);
-        debouncedFetchMaskedOverlayImage.cancel(); // Отменяем ожидающий запрос
+        debouncedFetchMaskedOverlayImage.cancel();
     }
 
     return () => {
-        // При размонтировании компонента или изменении зависимостей:
-        // 1. Отменяем текущий запрос (если он активен)
         if (fetchControllerRef.current) {
             fetchControllerRef.current.abort(); 
         }
-        // 2. Отзываем URL объекта (если есть)
         if (maskedOverlayImageUrl) {
             URL.revokeObjectURL(maskedOverlayImageUrl);
         }
-        // 3. Отменяем любые ожидающие вызовы debounce
         debouncedFetchMaskedOverlayImage.cancel();
     };
-  }, [activeBaseLayerId, selectedPolygon?.id, editingMapPolygon?.id, currentLayerOptions, debouncedFetchMaskedOverlayImage, selectedPolygon, editingMapPolygon]); // ✅ ИЗМЕНЕНО: Зависимости useEffect
+  }, [activeBaseLayerId, selectedPolygon?.id, editingMapPolygon?.id, currentLayerOptions, debouncedFetchMaskedOverlayImage, selectedPolygon, editingMapPolygon]); 
 
   const onEdited = useCallback((e) => {
   }, [onPolygonEdited]);
@@ -351,10 +328,9 @@ export default function MapComponent({
         formatArea={formatArea}
         onPolygonSelect={onPolygonSelect}
         setIsDrawing={setIsDrawing} 
-        // НОВЫЕ ПРОПСЫ: для управления инфо-боксом и NDVI
-        onMapMouseMove={onMapMouseMove} 
-        onPolygonMouseMoveForNdvi={onPolygonMouseMoveForNdvi} 
-        onPolygonMouseOutForNdvi={onPolygonMouseOutForNdvi} 
+        // УДАЛЕНО: Пропсы для управления инфо-боксом и NDVI
+        // onMapMouseMove={onMapMouseMove} 
+        // onPolygonMouseMoveForNdvi={onPolygonMouseMoveForNdvi} 
       />
     </MapContainer>
   );
