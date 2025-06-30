@@ -13,7 +13,7 @@ import './Map.css';                        // CSS-файл для специфи
 // Он должен быть ТОЛЬКО корнем вашего домена/приложения, без '/api' или '/polygons'.
 // Например: 'http://localhost:8080' для локальной разработки, или
 // 'https://newback-production-aa83.up.railway.app' для вашего Railway App.
-const BASE_API_URL = 'http://localhost:8080'; // ✅ Определяем BASE_API_URL здесь
+const BASE_API_URL = 'https://newback-production-aa83.up.railway.app'; // ✅ Определяем BASE_API_URL здесь
 
 // --- Вспомогательная функция для безопасного парсинга тела ответа ---
 async function parseResponseBody(response) {

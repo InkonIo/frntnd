@@ -16,7 +16,22 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
 });
 
-const INSTANCE_ID = 'f15c44d0-bbb8-4c66-b94e-6a8c4ab39349'; // Убедитесь, что это ваш реальный Instance ID
+// ✅ ОБНОВИТЕ ЭТОТ ID на ваш реальный Instance ID из Sentinel Hub Dashboard
+const INSTANCE_ID = 'f15c44d0-bbb8-4c66-b94e-6a8c7ab39349'; 
+
+// ✅ ИЗМЕНЕНО: Выносим sentinelLayerOptions за пределы компонента
+const SENTINEL_LAYER_OPTIONS = [
+  { id: '1_TRUE_COLOR', name: 'Истинный цвет (базовый)' }, // Показывается всегда как фон
+  { id: 'OSM', name: 'OpenStreetMap (базовый)' }, // Альтернативный фон
+  { id: '3_NDVI', name: 'NDVI (в полигоне)', type: 'masked_overlay' },
+  { id: '2_FALSE_COLOR', name: 'Ложный цвет (в полигоне)', type: 'masked_overlay' },
+  { id: '4-FALSE-COLOR-URBAN', name: 'Ложный цвет (городской, в полигоне)', type: 'masked_overlay' },
+  { id: '5-MOISTURE-INDEX1', name: 'Индекс влажности (в полигоне)', type: 'masked_overlay' },
+  { id: '6-SWIR', name: 'SWIR (в полигоне)', type: 'masked_overlay' },
+  { id: '7-NDWI', name: 'NDWI (в полигоне)', type: 'masked_overlay' },
+  { id: '8-NDSI', name: 'NDSI (в полигоне)', type: 'masked_overlay' },
+  { id: 'SCENE-CLASSIFICATION', name: 'Классификация сцен (в полигоне)', type: 'masked_overlay' },
+];
 
 export default function MapComponent({
   polygons,
@@ -43,37 +58,23 @@ export default function MapComponent({
   setInfoBoxLoading,
   onPolygonSelect,
 }) {
-  const [activeBaseLayerId, setActiveBaseLayerId] = useState('OSM');
+  // ✅ Активный слой по умолчанию - '1_TRUE_COLOR'
+  const [activeBaseLayerId, setActiveBaseLayerId] = useState('1_TRUE_COLOR'); 
 
   const mapRef = useRef();
   const [currentPath, setCurrentPath] = useState([]);
   const [hoveredPoint, setHoveredPoint] = useState(null);
 
-  const [maskedNdviImageUrl, setMaskedNdviImageUrl] = useState(null);
-  const [maskedNdviImageBounds, setMaskedNdviImageBounds] = useState(null);
-  const [maskedNdviImageLoading, setMaskedNdviImageLoading] = useState(false);
+  const [maskedOverlayImageUrl, setMaskedOverlayImageUrl] = useState(null); // Универсальный URL для маскированного оверлея
+  const [maskedOverlayImageBounds, setMaskedOverlayImageBounds] = useState(null); // Универсальные границы
+  const [maskedOverlayImageLoading, setMaskedOverlayImageLoading] = useState(false); // Универсальный статус загрузки
 
-  const sentinelLayerOptions = [
-    { id: 'OSM', name: 'OpenStreetMap' },
-    { id: '1_TRUE_COLOR', name: 'Истинный цвет' },
-    { id: '2_FALSE_COLOR', name: 'Ложный цвет' },
-    { id: '3_NDVI', name: 'NDVI (в полигоне)' },
-    { id: '5-MOISTURE-INDEX1', name: 'Индекс влажности' },
-    { id: '6-SWIR', name: 'SWIR' },
-    { id: '7-NDWI', name: 'NDWI' },
-    { id: '8-NDSI', name: 'NDSI' },
-    { id: 'SCENE-CLASSIFICATION', name: 'Классификация сцен' }
-  ];
+  // Маппинг Layer ID к объекту опций для удобного поиска (используется для получения type)
+  const currentLayerOptions = useMemo(() => {
+    // ✅ ИЗМЕНЕНО: Используем константу SENTINEL_LAYER_OPTIONS
+    return SENTINEL_LAYER_OPTIONS.find(opt => opt.id === activeBaseLayerId);
+  }, [activeBaseLayerId]); // Зависит только от activeBaseLayerId
 
-  const sentinelHubLayerNames = {
-    '1_TRUE_COLOR': '1_TRUE_COLOR',
-    '2_FALSE_COLOR': '2_FALSE_COLOR',
-    '5-MOISTURE-INDEX1': '5-MOISTURE-INDEX1',
-    '6-SWIR': '6-SWIR',
-    '7-NDWI': '7_NDWI',
-    '8-NDSI': '8_NDSI',
-    'SCENE-CLASSIFICATION': 'SCENE-CLASSIFICATION',
-  };
 
   useEffect(() => {
     window.clearCurrentPath = () => {
@@ -256,52 +257,30 @@ export default function MapComponent({
 
   const MemoizedMapContentAndInteractions = React.memo(MapContentAndInteractions);
 
+  // ✅ НОВЫЙ useEffect для загрузки маскированного оверлея
   useEffect(() => {
-    const fg = editableFGRef.current;
-    if (!fg) return;
+    const fetchMaskedOverlayImage = async (polygonId, coordinates, layerId) => {
+      setMaskedOverlayImageLoading(true);
+      setMaskedOverlayImageUrl(null);
+      setMaskedOverlayImageBounds(null);
 
-    if (isEditingMode && editingMapPolygon) {
-      fg.clearLayers();
-      const leafletPolygon = L.polygon(editingMapPolygon.coordinates);
-      fg.addLayer(leafletPolygon);
-      if (leafletPolygon.editing) {
-        leafletPolygon.editing.enable();
-        if (leafletPolygon.editing._markers) {
-          leafletPolygon.editing._markers.forEach(marker => marker.bringToFront());
-        }
-      }
-    } else if (!isEditingMode && fg.getLayers().length > 0) {
-      fg.eachLayer(layer => {
-        if (layer.editing && layer.editing.enabled()) {
-          layer.editing.disable();
-        }
-      });
-      fg.clearLayers();
-    }
-  }, [isEditingMode, editingMapPolygon, editableFGRef]);
-
-  useEffect(() => {
-    const fetchMaskedNdvi = async (polygonId, coordinates) => {
-      setMaskedNdviImageLoading(true);
-      setMaskedNdviImageUrl(null);
-      setMaskedNdviImageBounds(null);
-
-      console.log('Попытка загрузить маскированное NDVI для:', { polygonId, coordinates });
+      console.log(`Попытка загрузить маскированное изображение для слоя "${layerId}" и полигона:`, { polygonId, coordinates });
 
       if (!polygonId ||
           !coordinates ||
           !Array.isArray(coordinates) ||
           coordinates.length === 0 ||
           !coordinates.every(point => Array.isArray(point) && point.length === 2 && typeof point[0] === 'number' && typeof point[1] === 'number')) {
-        console.log("Отмена запроса NDVI: ID полигона отсутствует или координаты имеют неверную структуру.");
-        setMaskedNdviImageLoading(false);
+        console.log("Отмена запроса маскированного слоя: ID полигона отсутствует или координаты имеют неверную структуру.");
+        setMaskedOverlayImageLoading(false);
         return;
       }
 
       try {
         const token = localStorage.getItem('token');
-        console.log(`Отправка запроса на ${baseApiUrl}/api/v1/indices/ndvi-masked/${polygonId}`);
-        const response = await fetch(`${baseApiUrl}/api/v1/indices/ndvi-masked/${polygonId}`, {
+        // ✅ ИЗМЕНЕНО: Новый эндпоинт для универсального получения маскированных слоев
+        console.log(`Отправка запроса на ${baseApiUrl}/api/v1/indices/masked-index/${polygonId}/${layerId}`);
+        const response = await fetch(`${baseApiUrl}/api/v1/indices/masked-index/${polygonId}/${layerId}`, {
           headers: {
             'Authorization': token ? `Bearer ${token}` : undefined,
           },
@@ -314,50 +293,53 @@ export default function MapComponent({
 
         const blob = await response.blob();
         const imageUrl = URL.createObjectURL(blob);
-        console.log('Изображение NDVI получено как Blob, создан URL:', imageUrl);
+        console.log(`Изображение слоя "${layerId}" получено как Blob, создан URL:`, imageUrl);
 
         const leafletPolygon = L.polygon(coordinates);
         const bounds = leafletPolygon.getBounds().toBBoxString().split(',').map(Number);
         const imageBounds = [[bounds[1], bounds[0]], [bounds[3], bounds[2]]];
-        // ✅ НОВОЕ ЛОГИРОВАНИЕ: Более подробный вывод границ
         console.log('Границы изображения (bounds):', imageBounds);
 
-
-        setMaskedNdviImageUrl(imageUrl);
-        setMaskedNdviImageBounds(imageBounds);
-        console.log('Маскированное NDVI изображение загружено и установлены границы:', imageBounds);
+        setMaskedOverlayImageUrl(imageUrl);
+        setMaskedOverlayImageBounds(imageBounds);
+        console.log(`Маскированное изображение слоя "${layerId}" загружено и установлены границы:`, imageBounds);
 
       } catch (error) {
-        console.error('Ошибка при получении маскированного NDVI изображения:', error);
-        setMaskedNdviImageUrl(null);
-        setMaskedNdviImageBounds(null);
+        console.error(`Ошибка при получении маскированного изображения слоя "${layerId}":`, error);
+        setMaskedOverlayImageUrl(null);
+        setMaskedOverlayImageBounds(null);
       } finally {
-        setMaskedNdviImageLoading(false);
+        setMaskedOverlayImageLoading(false);
       }
     };
 
     const currentActivePolygon = selectedPolygon || (isEditingMode ? editingMapPolygon : null);
+    const activeLayerType = currentLayerOptions ? currentLayerOptions.type : '';
 
-    console.log('Текущий активный слой:', activeBaseLayerId);
+    console.log('Текущий активный слой (выбор пользователя):', activeBaseLayerId);
+    console.log('Тип текущего слоя (из опций):', activeLayerType);
     console.log('Текущий активный полигон ID:', currentActivePolygon ? currentActivePolygon.id : 'нет');
-    console.log('Текущие координаты полигона:', currentActivePolygon ? currentActivePolygon.coordinates : 'нет');
 
-    if (activeBaseLayerId === '3_NDVI' && currentActivePolygon && currentActivePolygon.id && currentActivePolygon.coordinates) {
-      fetchMaskedNdvi(currentActivePolygon.id, currentActivePolygon.coordinates);
+    // Если активен слой-оверлей (т.е. не 'OSM' или '1_TRUE_COLOR') И выбран полигон
+    if (activeLayerType === 'masked_overlay' && currentActivePolygon && currentActivePolygon.id && currentActivePolygon.coordinates) {
+        fetchMaskedOverlayImage(currentActivePolygon.id, currentActivePolygon.coordinates, activeBaseLayerId);
     } else {
-      if (maskedNdviImageUrl) {
-        URL.revokeObjectURL(maskedNdviImageUrl);
-      }
-      setMaskedNdviImageUrl(null);
-      setMaskedNdviImageBounds(null);
+        // Очищаем URL оверлея, если слой не оверлей или полигон не выбран
+        if (maskedOverlayImageUrl) {
+            URL.revokeObjectURL(maskedOverlayImageUrl);
+        }
+        setMaskedOverlayImageUrl(null);
+        setMaskedOverlayImageBounds(null);
     }
 
     return () => {
-      if (maskedNdviImageUrl) {
-        URL.revokeObjectURL(maskedNdviImageUrl);
-      }
+        // Очистка URL при размонтировании или изменении зависимостей
+        if (maskedOverlayImageUrl) {
+            URL.revokeObjectURL(maskedOverlayImageUrl);
+        }
     };
-  }, [activeBaseLayerId, selectedPolygon, isEditingMode, editingMapPolygon, baseApiUrl]);
+  }, [activeBaseLayerId, selectedPolygon, isEditingMode, editingMapPolygon, baseApiUrl, currentLayerOptions]); // currentLayerOptions здесь в зависимостях, но он уже мемоизирован
+
 
   const onEdited = useCallback((e) => {
   }, [onPolygonEdited]);
@@ -372,23 +354,43 @@ export default function MapComponent({
       style={{ flexGrow: 1, height: '100vh', width: '100%' }}
       whenCreated={mapInstance => { mapRef.current = mapInstance; }}
     >
-      {/* Всегда отображаем OpenStreetMap как базовый слой */}
-      <TileLayer
-        attribution="© OpenStreetMap contributors"
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-
-      {/* ✅ ОТОБРАЖЕНИЕ МАСКИРОВАННОГО ИЗОБРАЖЕНИЯ NDVI */}
-      {activeBaseLayerId === '3_NDVI' && maskedNdviImageUrl && maskedNdviImageBounds && (
-        <ImageOverlay
-          url={maskedNdviImageUrl}
-          bounds={maskedNdviImageBounds}
-          opacity={0.7}
-          zIndex={5} // ✅ ДОБАВЛЕНО: Устанавливаем z-index для отображения поверх базовой карты
+      {/* ✅ БАЗОВЫЙ СЛОЙ - Всегда "Истинный цвет" или OpenStreetMap */}
+      {activeBaseLayerId === 'OSM' ? (
+        <TileLayer
+          attribution="© OpenStreetMap contributors"
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          zIndex={1} 
+        />
+      ) : (
+        // Всегда рендерим True Color как базовый слой, если не выбран OSM
+        <WMSTileLayer
+          attribution="Sentinel Hub"
+          url={`${baseApiUrl}/api/v1/indices/wms-proxy/${INSTANCE_ID}`}
+          crs={L.CRS.EPSG3857}
+          format="image/png"
+          version="1.3.0"
+          transparent={false} // True Color не должен быть прозрачным
+          params={{
+            layers: '1_TRUE_COLOR', // Всегда '1_TRUE_COLOR' как фон
+            styles: '',
+            time: '2023-06-01/2024-06-30', // Фиксированный диапазон для фона
+            maxcc: 80, // Фиксированная облачность для фона
+          }}
+          zIndex={1} 
         />
       )}
-      {/* Индикатор загрузки для маскированного изображения */}
-      {activeBaseLayerId === '3_NDVI' && maskedNdviImageLoading && (
+
+      {/* ✅ ОВЕРЛЕЙ СЛОЙ - Маскированное изображение выбранного индекса (в полигоне) */}
+      {currentLayerOptions && currentLayerOptions.type === 'masked_overlay' && selectedPolygon && selectedPolygon.id && maskedOverlayImageUrl && maskedOverlayImageBounds && (
+        <ImageOverlay
+          url={maskedOverlayImageUrl}
+          bounds={maskedOverlayImageBounds}
+          opacity={0.7} // Можно настроить прозрачность
+          zIndex={5} // Высокий z-index для отображения поверх базовой карты
+        />
+      )}
+      {/* Индикатор загрузки для маскированного оверлей слоя */}
+      {currentLayerOptions && currentLayerOptions.type === 'masked_overlay' && maskedOverlayImageLoading && (
         <div style={{
           position: 'absolute',
           top: '50%',
@@ -406,26 +408,8 @@ export default function MapComponent({
           gap: '10px'
         }}>
           <span className="loader-spin h-6 w-6 border-4 border-t-4 border-white-500 rounded-full inline-block"></span>
-          Загрузка NDVI изображения...
+          Загрузка изображения слоя "{currentLayerOptions.name}"...
         </div>
-      )}
-
-      {/* Условное отображение для других слоев Sentinel Hub (которые не маскируются на фронтенде) */}
-      {activeBaseLayerId !== 'OSM' && activeBaseLayerId !== '3_NDVI' && (
-        <WMSTileLayer
-          attribution="Sentinel Hub"
-          url={`${baseApiUrl}/api/v1/indices/wms-proxy/${INSTANCE_ID}`}
-          crs={L.CRS.EPSG3857}
-          format="image/png"
-          version="1.3.0"
-          transparent={true}
-          params={{
-            layers: sentinelHubLayerNames[activeBaseLayerId],
-            styles: '',
-            time: '2024-05-03/2024-05-30',
-            maxcc: 20,
-          }}
-        />
       )}
 
       {/* Основное содержимое карты и интеракции (полигоны, маркеры, рисование) */}
@@ -499,7 +483,7 @@ export default function MapComponent({
                 className="bg-white/20 text-white rounded-lg text-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-300 border border-white/30 w-full hover:bg-white/30 transition-colors duration-200"
                 style={{ pointerEvents: 'auto' }}
               >
-                {sentinelLayerOptions.map(option => (
+                {SENTINEL_LAYER_OPTIONS.map(option => (
                   <option
                     key={option.id}
                     value={option.id}
